@@ -21,7 +21,7 @@ export default function App() {
   return (
     <div className="min-h-screen max-w-md md:max-w-3xl mx-auto relative">
       <header className="px-5 pt-6 pb-2">
-        <h1 className="text-xl font-extrabold tracking-tight"><span className="text-brand-light">TF</span> Finance</h1>
+        <h1 className="text-xl font-extrabold tracking-tight"><span className="text-brand-light">Finanzas</span> Pacheco Izquierdo</h1>
       </header>
       <main className="px-5 pb-32 pt-3">
         {tab === 'home' && <Home store={store} openForm={setForm} goProfile={() => setTab('profile')} />}
