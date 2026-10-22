@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 
 export const CURRENCIES = ['USD', 'EUR', 'Bs', 'USDT']
 export const SYMBOLS = { USD: '$', EUR: '€', Bs: 'Bs', USDT: '₮' }
@@ -16,7 +16,7 @@ const T = {
     empty: 'Sin movimientos aún', accounts: 'Cuentas', movements: 'Movimientos', addAccount: 'Agregar cuenta',
     date: 'Fecha', description: 'Descripción', category: 'Categoría', amount: 'Monto', currency: 'Moneda',
     account: 'Cuenta', save: 'Guardar', name: 'Nombre', initial: 'Saldo inicial', language: 'Idioma',
-    mainCurrency: 'Moneda principal', ratesTitle: 'Tasas de cambio (en Bs)', danger: 'Zona de riesgo',
+    mainCurrency: 'Moneda principal', bcvTitle: 'Tasa BCV (dólar oficial)', bcvToday: 'Hoy', bcvRefresh: 'Actualizar', bcvEmpty: 'Sin datos aún', bcvError: 'No se pudo consultar el BCV', ratesTitle: 'Tasas de cambio (en Bs)', danger: 'Zona de riesgo',
     dangerDesc: 'Borra todos los datos guardados en este dispositivo.', clearAll: 'Borrar todos los datos',
     confirm: '¿Seguro? Esta acción no se puede deshacer.', monthly: 'Flujo mensual', cats: 'Desglose por categoría',
     hello: 'Hola', delete: 'Eliminar', cancel: 'Cancelar', quick: 'Acción rápida', none: 'Ninguna',
@@ -28,7 +28,7 @@ const T = {
     empty: 'No transactions yet', accounts: 'Accounts', movements: 'Transactions', addAccount: 'Add account',
     date: 'Date', description: 'Description', category: 'Category', amount: 'Amount', currency: 'Currency',
     account: 'Account', save: 'Save', name: 'Name', initial: 'Initial balance', language: 'Language',
-    mainCurrency: 'Main currency', ratesTitle: 'Exchange rates (in Bs)', danger: 'Danger zone',
+    mainCurrency: 'Main currency', bcvTitle: 'BCV rate (official dollar)', bcvToday: 'Today', bcvRefresh: 'Refresh', bcvEmpty: 'No data yet', bcvError: 'Could not reach BCV', ratesTitle: 'Exchange rates (in Bs)', danger: 'Danger zone',
     dangerDesc: 'Deletes all data stored on this device.', clearAll: 'Delete all data',
     confirm: 'Are you sure? This cannot be undone.', monthly: 'Monthly flow', cats: 'Category breakdown',
     hello: 'Hi', delete: 'Delete', cancel: 'Cancel', quick: 'Quick action', none: 'None',
@@ -45,8 +45,10 @@ const DEFAULTS = {
     { id: 'a4', name: 'PayPal', icon: 'paypal', currency: 'USD', initial: 0 },
   ],
   txs: [],
+  bcv: { history: {}, updatedAt: null, error: null }, // history: { 'YYYY-MM-DD': Bs por USD }
 }
 
+export const BCV_URL = 'https://ve.dolarapi.com/v1/dolares'
 const KEY = 'tf-finance-v1'
 
 function load() {
@@ -61,10 +63,30 @@ export function useStore() {
   useEffect(() => {
     try { localStorage.setItem(KEY, JSON.stringify(state)) } catch { /* sin almacenamiento */ }
   }, [state])
+  const refreshBcv = useCallback(async () => {
+    try {
+      const res = await fetch(BCV_URL)
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      const list = await res.json()
+      const oficial = list.find((d) => d.fuente === 'oficial')
+      const rate = Number(oficial?.promedio ?? oficial?.venta)
+      if (!(rate > 0)) throw new Error('Respuesta sin tasa oficial')
+      const day = (oficial.fechaActualizacion || '').slice(0, 10) || today()
+      setState((s) => ({
+        ...s,
+        rates: { ...s.rates, USD: rate },
+        bcv: { history: { ...s.bcv.history, [day]: rate }, updatedAt: new Date().toISOString(), error: null },
+      }))
+    } catch (e) {
+      setState((s) => ({ ...s, bcv: { ...s.bcv, error: e.message } }))
+    }
+  }, [])
+  useEffect(() => { refreshBcv() }, [refreshBcv])
+
   const t = (k) => T[state.profile.lang]?.[k] ?? k
   const update = (patch) => setState((s) => ({ ...s, ...patch }))
   return {
-    ...state, t,
+    ...state, t, refreshBcv,
     setProfile: (p) => update({ profile: { ...state.profile, ...p } }),
     setRates: (r) => update({ rates: { ...state.rates, ...r } }),
     addTx: (tx) => update({ txs: [{ ...tx, id: crypto.randomUUID() }, ...state.txs] }),

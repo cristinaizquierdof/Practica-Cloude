@@ -188,7 +188,8 @@ export function WalletScreen({ store }) {
 }
 
 export function Profile({ store }) {
-  const { t, profile, setProfile, rates, setRates, clearAll } = store
+  const { t, profile, setProfile, rates, setRates, clearAll, bcv, refreshBcv } = store
+  const days = Object.keys(bcv.history).sort().reverse().slice(0, 6) // hoy + 5 previos
   return (
     <div className="space-y-5 md:grid md:grid-cols-2 md:gap-5 md:space-y-0 md:items-start">
       <section className="card space-y-3">
@@ -201,6 +202,23 @@ export function Profile({ store }) {
         <Field label={t('mainCurrency')}>
           <select value={profile.currency} onChange={(e) => setProfile({ currency: e.target.value })}>{CURRENCIES.map((c) => <option key={c}>{c}</option>)}</select>
         </Field>
+      </section>
+      <section className="card space-y-2 md:col-span-2">
+        <div className="flex items-center justify-between">
+          <h3 className="font-semibold">{t('bcvTitle')}</h3>
+          <button onClick={refreshBcv} className="text-xs text-brand-pale">{t('bcvRefresh')}</button>
+        </div>
+        {bcv.error && <p className="text-xs text-rose-400">{t('bcvError')}: {bcv.error}</p>}
+        {days.length === 0 ? <p className="text-sm text-slate-500">{t('bcvEmpty')}</p> : (
+          <div className="divide-y divide-slate-800">
+            {days.map((d, i) => (
+              <div key={d} className="flex justify-between py-2 text-sm">
+                <span className="text-slate-400">{i === 0 ? `${t('bcvToday')} · ${d}` : d}</span>
+                <span className="font-semibold">Bs {bcv.history[d].toFixed(2)}</span>
+              </div>
+            ))}
+          </div>
+        )}
       </section>
       <section className="card space-y-3">
         <h3 className="font-semibold">{t('ratesTitle')}</h3>
