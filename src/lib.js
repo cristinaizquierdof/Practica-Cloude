@@ -48,7 +48,7 @@ const DEFAULTS = {
   bcv: { history: {}, updatedAt: null, error: null }, // history: { 'YYYY-MM-DD': Bs por USD }
 }
 
-export const BCV_URL = 'https://ve.dolarapi.com/v1/dolares'
+export const BCV_URL = 'https://ve.dolarapi.com/v1/dolares/oficial'
 const KEY = 'tf-finance-v1'
 
 function load() {
@@ -67,8 +67,7 @@ export function useStore() {
     try {
       const res = await fetch(BCV_URL)
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
-      const list = await res.json()
-      const oficial = list.find((d) => d.fuente === 'oficial')
+      const oficial = await res.json()
       const rate = Number(oficial?.promedio ?? oficial?.venta)
       if (!(rate > 0)) throw new Error('Respuesta sin tasa oficial')
       const day = (oficial.fechaActualizacion || '').slice(0, 10) || today()
